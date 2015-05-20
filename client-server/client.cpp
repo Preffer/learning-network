@@ -52,7 +52,6 @@ int main(int argc, char* argv[]) {
 	}
 
 	while (true) {
-		cout << "HERE" << endl;
 		printf("Please enter the message: ");
 		memset(buffer, 0, 256);
 		fgets(buffer, 255, stdin);

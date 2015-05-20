@@ -1,75 +1,104 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <iostream>
+#include <sstream>
+#include <vector>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cassert>
 #include <unistd.h>
 #include <sys/types.h> 
 #include <sys/socket.h>
+#include <sys/poll.h>
 #include <netinet/in.h>
-#include <iostream>
 
 using namespace std;
 
-void error(const char *msg);
+const size_t BUFFER_SIZE = 1024;
 
 int main(int argc, char *argv[]) {
-	int sockfd, newsockfd, portno;
-	socklen_t clilen;
-	char buffer[256];
-	struct sockaddr_in serv_addr, cli_addr;
-
 	if (argc < 2) {
-		fprintf(stderr,"ERROR, no port provided\n");
-		exit(1);
+		cerr << "ERROR: no port provided" << endl;
+		return EXIT_FAILURE;
 	}
 
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd < 0) {
-		error("ERROR opening socket");
-	}
+	int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+	assert(server_fd > 0);
 
-	memset(&serv_addr, 0, sizeof(serv_addr));
+	struct sockaddr_in server_addr, client_addr;
 
-	portno = atoi(argv[1]);
-	serv_addr.sin_family = AF_INET;
-	serv_addr.sin_addr.s_addr = INADDR_ANY;
-	serv_addr.sin_port = htons(portno);
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_addr.s_addr = INADDR_ANY;
+	server_addr.sin_port = htons(atoi(argv[1]));
+
+	const int timeout = 60 * 1000;
+	char* buffer = new char[BUFFER_SIZE];
+	int res;
+
+	res = bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr));
+	assert(res >= 0);
 	
-	if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-		error("ERROR on binding");
-	}
-			  
-	listen(sockfd,5);
+	res = listen(server_fd, SOMAXCONN);
+	assert(res >= 0);
 
-	while(true) {
-		clilen = sizeof(cli_addr);
-		newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-		if (newsockfd < 0) {
-			error("ERROR on accept");
-		}
-		while(true) {
-			memset(buffer, 0, 256);
+	vector<struct pollfd> watch_fd(1);
+	watch_fd[0].fd = server_fd;
+	watch_fd[0].events = POLLIN;
 
-			int n = read(newsockfd, buffer, 255);
-			if (n < 0) {
-				error("ERROR reading from socket");
-			}
-			printf("Here is the message: %s\n",buffer);
+	while (true) {
+		cout << "polling..." << endl;
 
-			n = write(newsockfd,"I got your message", 18);
+		res = poll(watch_fd.data(), watch_fd.size(), timeout);
+		assert(res >= 0);
 
-			if (n < 0) {
-				error("ERROR writing to socket");
-			}
+		if (res == 0) {
+			cout << "poll() timed out, nothing happend" << endl;
+			continue;
 		}
 
-		close(newsockfd);
+		for (int i = 1; i < watch_fd.size(); i++) {
+			if (watch_fd[i].revents == 0) {
+				continue;
+			} else {
+				if (watch_fd[i].revents == POLLIN) {
+					memset(buffer, 0, BUFFER_SIZE);
+
+					res = read(watch_fd[i].fd, buffer, BUFFER_SIZE);
+					assert(res >= 0);
+
+					cout << "Message: " << buffer << endl;
+
+					stringstream response;
+					response << "Recv: " << buffer;
+
+					res = write(watch_fd[i].fd, response.str().c_str(), response.str().size());
+					assert(res >= 0);
+				} else {
+					cerr << "other events happend" << endl;
+					cout << watch_fd[i].revents << endl;
+					//close(watch_fd[i].fd);
+					watch_fd.erase(watch_fd.begin() + i);
+				}
+
+				watch_fd[i].revents = 0;
+			}
+
+		}
+
+		if (watch_fd[0].revents == POLLIN) {
+			socklen_t client_addr_length =  sizeof(client_addr);
+			int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_length);
+			assert(client_fd >= 0);
+
+			struct pollfd new_fd;
+			new_fd.fd = client_fd;
+			new_fd.events = POLLIN;
+
+			watch_fd.push_back(new_fd);
+
+			watch_fd[0].revents = 0;
+		}
 	}
 
-	close(sockfd);
+	close(server_fd);
 	return EXIT_SUCCESS; 
-}
-
-void error(const char *msg) {
-	perror(msg);
-	exit(1);
 }
