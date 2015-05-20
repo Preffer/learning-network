@@ -1,12 +1,9 @@
 #include <iostream>
-#include <sstream>
 #include <vector>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cassert>
 #include <unistd.h>
-#include <sys/types.h> 
 #include <sys/socket.h>
 #include <sys/poll.h>
 #include <netinet/in.h>
@@ -67,10 +64,10 @@ int main(int argc, char *argv[]) {
 
 					cout << "Message: " << buffer << endl;
 
-					stringstream response;
-					response << "Recv: " << buffer;
+					string response = "Recv: ";
+					response += buffer;
 
-					res = write(watch_fd[i].fd, response.str().c_str(), response.str().size());
+					res = write(watch_fd[i].fd, response.c_str(), response.length());
 					assert(res >= 0);
 				} else {
 					cerr << "other events happend" << endl;
