@@ -44,11 +44,18 @@ int main(int argc, char* argv[]) {
 		die("Error connecting server");
 	}
 
-	cout << "Connected to " << argv[1] << ":" << argv[2] << endl;
-	showUsage();
-
 	string command;
 	char* buffer = new char[BUFFER_SIZE];
+
+	memset(buffer, 0, BUFFER_SIZE);
+	result = recv(client_fd, buffer, BUFFER_SIZE, 0);
+	if (result < 0) {
+		die("Error on recv()");
+	}
+
+	cout << "Connected to " << argv[1] << ":" << argv[2] << endl;
+	cout << "Client ID: " << buffer << endl;
+	showUsage();
 
 	while (true) {
 		cout << "> ";
@@ -91,6 +98,6 @@ void showUsage() {
 	cout << "\ttime\t\t\tget server time" << endl;
 	cout << "\tname\t\t\tget server name" << endl;
 	cout << "\tlist\t\t\tget client list" << endl;
-	cout << "\tsend <id> <text>\tsend text to client@id" << endl;
+	cout << "\tsend <ID> <text>\tsend text to client@ID" << endl;
 	cout << "\tquit\t\t\tquit and bye" << endl;
 }

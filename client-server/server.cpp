@@ -11,21 +11,23 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <boost/format.hpp>
+#include <boost/algorithm/string.hpp>
 
 using namespace std;
 using namespace boost;
 typedef pair <char*, uint16_t> ClientInfo;
 typedef map <int, ClientInfo> ClientMap;
 
+const size_t BUFFER_SIZE = 1024;
+const int POLL_TIMEOUT = 60 * 1000;
+ClientMap onlineClient;
+
 void die(const char* message);
 string onCommand(const string& command);
 string onTime();
 string onName();
 string onList();
-
-const size_t BUFFER_SIZE = 1024;
-const int POLL_TIMEOUT = 60 * 1000;
-ClientMap onlineClient;
+string onSend(const string& command);
 
 int main(int argc, char *argv[]) {
 	if (argc < 2) {
@@ -120,15 +122,22 @@ int main(int argc, char *argv[]) {
 
 			char* ip = inet_ntoa(client_addr.sin_addr);
 			uint16_t port = ntohs(client_addr.sin_port);
-			onlineClient[client_fd] = ClientInfo(ip, port);
 
 			cout << format("Client connected, ID: %1%, IP: %2%, Port: %3%") % client_fd % ip % port << endl;			
 
-			struct pollfd poll_fd;
-			poll_fd.fd = client_fd;
-			poll_fd.events = POLLIN;
+			string hello = to_string(client_fd);
+			result = send(client_fd, hello.c_str(), hello.length(), 0);
 
-			watch_fd.push_back(poll_fd);
+			if (result > 0) {
+				struct pollfd poll_fd;
+				poll_fd.fd = client_fd;
+				poll_fd.events = POLLIN;
+
+				watch_fd.push_back(poll_fd);
+				onlineClient[client_fd] = ClientInfo(ip, port);
+			} else {
+				perror("Error on send()");
+			}
 
 			watch_fd[0].revents = 0;
 		}
@@ -153,6 +162,9 @@ string onCommand(const string& command) {
 	if (command == "list") {
 		return onList();
 	}
+	if (command.find("send") == 0) {
+		return onSend(command);
+	}
 
 	return "Invalid Command";
 }
@@ -174,4 +186,26 @@ string onList() {
 		response.append((format("ID: %1%,\tIP: %2%,\tPort: %3%\n") % client.first % client.second.first % client.second.second).str());
 	}
 	return response;
+}
+
+string onSend(const string& command) {
+	vector<string> words;
+	split(words, command, boost::is_any_of(" "));
+
+	if (words.size() != 3) {
+		return "Invalid Command";
+	}
+
+	int dest_fd = stoi(words[1]);
+
+	if (onlineClient.find(dest_fd) == onlineClient.end()) {
+		return "No such client";
+	} else {
+		int result = send(dest_fd, words[2].c_str(), words[2].length(), 0);
+		if (result > 0) {
+			return "Success";
+		} else {
+			return "Failed";
+		}
+	}
 }
