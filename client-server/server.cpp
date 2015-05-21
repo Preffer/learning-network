@@ -70,38 +70,33 @@ int main(int argc, char *argv[]) {
 					memset(buffer, 0, BUFFER_SIZE);
 
 					res = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
-					if (res <= 0) {
+					if (res > 0) {
+						cout << "Message: " << buffer << " Length: " << res << endl;
+
+						string response = "Recv: ";
+						response += buffer;
+
+						res = send(watch_fd[i].fd, response.c_str(), response.length(), 0);
+						if (res > 0) {
+							watch_fd[i].revents = 0;
+							continue;
+						} else {
+							perror("Error on send()");
+						}
+					} else {
 						if (res == 0) {
 							cout << "Close connection" << endl;
 						} else {
 							perror("Error on recv()");
 						}
-						close(watch_fd[i].fd);
-						watch_fd.erase(watch_fd.begin() + i);
-						continue;
 					}
-
-					cout << "Message: " << buffer << " Length: " << res << endl;
-
-					string response = "Recv: ";
-					response += buffer;
-
-					res = send(watch_fd[i].fd, response.c_str(), response.length(), 0);
-					if (res < 0) {
-						perror("Error on send()");
-						close(watch_fd[i].fd);
-						watch_fd.erase(watch_fd.begin() + i);
-						continue;
-					}
-
-					watch_fd[i].revents = 0;
 				} else {
 					cerr << "Unexpected events happend" << endl;
 					cout << watch_fd[i].revents << endl;
-					close(watch_fd[i].fd);
-					watch_fd.erase(watch_fd.begin() + i);
 				}
 
+				close(watch_fd[i].fd);
+				watch_fd.erase(watch_fd.begin() + i);
 			}
 
 		}
@@ -110,7 +105,7 @@ int main(int argc, char *argv[]) {
 			socklen_t client_addr_length =  sizeof(client_addr);
 			int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_length);
 			if (client_fd < 0) {
-				die("Error on accept()");
+				perror("Error on accept()");
 			}
 
 			struct pollfd new_fd;
