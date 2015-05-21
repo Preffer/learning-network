@@ -40,25 +40,42 @@ int main(int argc, char* argv[]) {
 		die("Error connecting server");
 	}
 
-	string message;
+	cout << "Connected to " << argv[1] << ":" << argv[2] << endl;
+	cout << "Usage: " << endl;
+	cout << "\ttime\t\t\tget server time" << endl;
+	cout << "\tname\t\t\tget server name" << endl;
+	cout << "\tlist\t\t\tget client list" << endl;
+	cout << "\tsend <id> <text>\tsend text to client@id" << endl;
+	cout << "\tquit\t\t\tquit and bye" << endl;
+
+	string command;
 	char* buffer = new char[BUFFER_SIZE];
 
 	while (true) {
-		cout << "Please enter the message: ";
-		cin >> message;
+		cout << "> ";
+		getline(cin, command);
 
-		result = send(client_fd, message.c_str(), message.length(), 0);
-		if (result < 0) {
-			die("Error on send()");
+		if (command.find("quit") == 0) {
+			cout << "bye~" << endl;
+			break;
 		}
 
-		memset(buffer, 0, BUFFER_SIZE);
-		result = recv(client_fd, buffer, BUFFER_SIZE, 0);
-		if (result < 0) {
-			die("Error on recv()");
-		}
+		if (command.find("time") != string::npos || command.find("name") != string::npos || command.find("list") != string::npos || command.find("send") != string::npos) {
+			result = send(client_fd, command.c_str(), command.length(), 0);
+			if (result < 0) {
+				die("Error on send()");
+			}
 
-		cout << "Client: " << buffer << endl;
+			memset(buffer, 0, BUFFER_SIZE);
+			result = recv(client_fd, buffer, BUFFER_SIZE, 0);
+			if (result < 0) {
+				die("Error on recv()");
+			}
+
+			cout << "Client: " << buffer << endl;
+		} else {
+			cout << "Invalid command" << endl;
+		}
 	}
 
 	close(client_fd);

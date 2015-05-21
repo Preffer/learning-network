@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
 		result = poll(watch_fd.data(), watch_fd.size(), POLL_TIMEOUT);
 		if (result <= 0) {
 			if (result == 0) {
-				cout << "poll() timed out, no event happend" << endl;
+				cout << "poll() time out, no event happend" << endl;
 				continue;
 			} else {
 				die("Error on poll()");
