@@ -1,23 +1,36 @@
 #include <iostream>
 #include <vector>
+#include <map>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/poll.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <boost/format.hpp>
 
 using namespace std;
-const size_t BUFFER_SIZE = 1024;
-const int POLL_TIMEOUT = 60 * 1000;
+using namespace boost;
+typedef pair <char*, uint16_t> ClientInfo;
+typedef map <int, ClientInfo> ClientMap;
 
 void die(const char* message);
+string onCommand(const string& command);
+string onTime();
+string onName();
+string onList();
+
+const size_t BUFFER_SIZE = 1024;
+const int POLL_TIMEOUT = 60 * 1000;
+ClientMap onlineClient;
 
 int main(int argc, char *argv[]) {
 	if (argc < 2) {
 		cerr << "Error: port required" << endl;
-		cout << "Usage: ./server <port>" << endl;
+		cout << format("Usage: %1% <port>") % argv[0] << endl;
 		exit(EXIT_FAILURE);
 	}
 
@@ -69,12 +82,9 @@ int main(int argc, char *argv[]) {
 
 					result = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
 					if (result > 0) {
-						cout << "Client: " << buffer << " Length: " << result << endl;
-
-						string response("Server: ");
-						response += buffer;
-
+						string response = onCommand(buffer);
 						result = send(watch_fd[i].fd, response.c_str(), response.length(), 0);
+
 						if (result > 0) {
 							watch_fd[i].revents = 0;
 							continue;
@@ -83,7 +93,7 @@ int main(int argc, char *argv[]) {
 						}
 					} else {
 						if (result == 0) {
-							cout << "A client disconnected" << endl;
+							cout << "Client disconnected" << endl;
 						} else {
 							perror("Error on recv()");
 						}
@@ -102,18 +112,23 @@ int main(int argc, char *argv[]) {
 		if (watch_fd[0].revents == POLLIN) {
 			struct sockaddr_in client_addr;
 			socklen_t client_addr_length =  sizeof(client_addr);
+
 			int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_length);
 			if (client_fd < 0) {
 				perror("Error on accept()");
 			}
 
-			cout << "A client connected" << endl;
+			char* ip = inet_ntoa(client_addr.sin_addr);
+			uint16_t port = ntohs(client_addr.sin_port);
+			onlineClient[client_fd] = ClientInfo(ip, port);
 
-			struct pollfd new_fd;
-			new_fd.fd = client_fd;
-			new_fd.events = POLLIN;
+			cout << format("Client connected, ID: %1%, IP: %2%, Port: %3%") % client_fd % ip % port << endl;			
 
-			watch_fd.push_back(new_fd);
+			struct pollfd poll_fd;
+			poll_fd.fd = client_fd;
+			poll_fd.events = POLLIN;
+
+			watch_fd.push_back(poll_fd);
 
 			watch_fd[0].revents = 0;
 		}
@@ -126,4 +141,37 @@ int main(int argc, char *argv[]) {
 void die(const char* message) {
 	perror(message);
 	exit(EXIT_FAILURE);
+}
+
+string onCommand(const string& command) {
+	if (command == "time") {
+		return onTime();
+	}
+	if (command == "name") {
+		return onName();
+	}
+	if (command == "list") {
+		return onList();
+	}
+
+	return "Invalid Command";
+}
+
+string onTime() {
+	time_t now = time(NULL);
+	return ctime(&now);
+}
+
+string onName() {
+	char hostname[128];
+	gethostname(hostname, 127);
+	return hostname;
+}
+
+string onList() {
+	string response;
+	for (auto client : onlineClient) {
+		response.append((format("ID: %1%,\tIP: %2%,\tPort: %3%\n") % client.first % client.second.first % client.second.second).str());
+	}
+	return response;
 }

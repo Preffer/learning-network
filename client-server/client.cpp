@@ -6,16 +6,20 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <boost/format.hpp>
 
 using namespace std;
+using namespace boost;
+
 const size_t BUFFER_SIZE = 1024;
 
 void die(const char* message);
+void showUsage();
 
 int main(int argc, char* argv[]) {
 	if (argc < 3) {
 		cerr << "Error: hostname port required" << endl;
-		cout << "Usage: ./client <hostname> <port>" << endl;
+		cout << format("Usage: %1% <hostname> <port>") % argv[0] << endl;
 		exit(EXIT_FAILURE);
 	}
 
@@ -41,12 +45,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	cout << "Connected to " << argv[1] << ":" << argv[2] << endl;
-	cout << "Usage: " << endl;
-	cout << "\ttime\t\t\tget server time" << endl;
-	cout << "\tname\t\t\tget server name" << endl;
-	cout << "\tlist\t\t\tget client list" << endl;
-	cout << "\tsend <id> <text>\tsend text to client@id" << endl;
-	cout << "\tquit\t\t\tquit and bye" << endl;
+	showUsage();
 
 	string command;
 	char* buffer = new char[BUFFER_SIZE];
@@ -60,7 +59,7 @@ int main(int argc, char* argv[]) {
 			break;
 		}
 
-		if (command.find("time") != string::npos || command.find("name") != string::npos || command.find("list") != string::npos || command.find("send") != string::npos) {
+		if (command == "time" || command == "name" || command == "list" || command.find("send") == 0) {
 			result = send(client_fd, command.c_str(), command.length(), 0);
 			if (result < 0) {
 				die("Error on send()");
@@ -72,9 +71,9 @@ int main(int argc, char* argv[]) {
 				die("Error on recv()");
 			}
 
-			cout << "Client: " << buffer << endl;
+			cout << buffer << endl;
 		} else {
-			cout << "Invalid command" << endl;
+			cout << "Invalid Command" << endl;
 		}
 	}
 
@@ -85,4 +84,13 @@ int main(int argc, char* argv[]) {
 void die(const char* message) {
 	perror(message);
 	exit(EXIT_FAILURE);
+}
+
+void showUsage() {
+	cout << "Usage: " << endl;
+	cout << "\ttime\t\t\tget server time" << endl;
+	cout << "\tname\t\t\tget server name" << endl;
+	cout << "\tlist\t\t\tget client list" << endl;
+	cout << "\tsend <id> <text>\tsend text to client@id" << endl;
+	cout << "\tquit\t\t\tquit and bye" << endl;
 }
