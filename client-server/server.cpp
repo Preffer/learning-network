@@ -31,10 +31,7 @@ int main(int argc, char *argv[]) {
 	server_addr.sin_addr.s_addr = INADDR_ANY;
 	server_addr.sin_port = htons(atoi(argv[1]));
 
-	char* buffer = new char[BUFFER_SIZE];
-	int result;
-
-	result = bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr));
+	int result = bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr));
 	if (result < 0) {
 		die("Error binding address");
 	}
@@ -47,6 +44,8 @@ int main(int argc, char *argv[]) {
 	vector<struct pollfd> watch_fd(1);
 	watch_fd[0].fd = server_fd;
 	watch_fd[0].events = POLLIN;
+
+	char* buffer = new char[BUFFER_SIZE];
 
 	while (true) {
 		cout << "Polling..." << endl;
@@ -70,9 +69,9 @@ int main(int argc, char *argv[]) {
 
 					result = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
 					if (result > 0) {
-						cout << "Message: " << buffer << " Length: " << result << endl;
+						cout << "Client: " << buffer << " Length: " << result << endl;
 
-						string response("Recv: ");
+						string response("Server: ");
 						response += buffer;
 
 						result = send(watch_fd[i].fd, response.c_str(), response.length(), 0);

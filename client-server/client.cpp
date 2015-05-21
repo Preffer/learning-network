@@ -1,74 +1,71 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include <iostream>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
-#include <string.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include <netdb.h> 
-#include <iostream>
+#include <netdb.h>
 
 using namespace std;
+const size_t BUFFER_SIZE = 1024;
 
-void error(const char *msg)
-{
-	perror(msg);
-	exit(0);
-}
+void die(const char *message);
 
 int main(int argc, char* argv[]) {
-	int sockfd, portno, n;
-	struct sockaddr_in serv_addr;
-	struct hostent* server;
-
-	char buffer[256];
-
 	if (argc < 3) {
-	   fprintf(stderr,"usage %s hostname port\n", argv[0]);
-	   exit(0);
+		cerr << "Error: hostname port required" << endl;
+		cout << "Usage: ./client <hostname> <port>" << endl;
+		exit(EXIT_FAILURE);
 	}
 
-	portno = atoi(argv[2]);
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-
-	if (sockfd < 0) {
-		error("ERROR opening socket");
+	int client_fd = socket(AF_INET, SOCK_STREAM, 0);
+	if (client_fd < 0) {
+		die("Error opening socket");
 	}
 
-	server = gethostbyname(argv[1]);
+	struct hostent* server = gethostbyname(argv[1]);
 	if (server == NULL) {
-		fprintf(stderr,"ERROR, no such host\n");
-		exit(0);
+		cerr << "Can't resolve server: " << argv[1] << endl;
+		exit(EXIT_FAILURE);
 	}
 
-	memset(&serv_addr, 0, sizeof(serv_addr));
-	serv_addr.sin_family = AF_INET;
+	struct sockaddr_in server_addr;
+	server_addr.sin_family = AF_INET;
+	memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
+	server_addr.sin_port = htons(atoi(argv[2]));
 
-	memcpy((char *)server->h_addr, (char *)&serv_addr.sin_addr.s_addr, server->h_length);
-	serv_addr.sin_port = htons(portno);
-
-	if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) {
-		 error("ERROR connecting");
+	int result = connect(client_fd, (struct sockaddr *) &server_addr, sizeof(server_addr));
+	if (result < 0) {
+		die("Error connecting server");
 	}
+
+	string message;
+	char* buffer = new char[BUFFER_SIZE];
 
 	while (true) {
-		printf("Please enter the message: ");
-		memset(buffer, 0, 256);
-		fgets(buffer, 255, stdin);
+		cout << "Please enter the message: ";
+		cin >> message;
 
-		n = write(sockfd,buffer,strlen(buffer));
-		if (n < 0) {
-			error("ERROR writing to socket");
+		result = send(client_fd, message.c_str(), message.length(), 0);
+		if (result < 0) {
+			die("Error on send()");
 		}
-		memset(buffer, 0, 256);
-		n = read(sockfd, buffer,255);
-		if (n < 0) {
-			error("ERROR reading from socket");
+
+		memset(buffer, 0, BUFFER_SIZE);
+		result = recv(client_fd, buffer, BUFFER_SIZE, 0);
+		if (result < 0) {
+			die("Error on recv()");
 		}
-		printf("%s\n",buffer);
+
+		cout << "Client: " << buffer << endl;
 	}
 
-	close(sockfd);
-
+	close(client_fd);
 	return EXIT_SUCCESS;
+}
+
+void die(const char *message) {
+	perror(message);
+	exit(EXIT_FAILURE);
 }
