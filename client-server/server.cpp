@@ -60,24 +60,34 @@ int main(int argc, char *argv[]) {
 				if (watch_fd[i].revents == POLLIN) {
 					memset(buffer, 0, BUFFER_SIZE);
 
-					res = read(watch_fd[i].fd, buffer, BUFFER_SIZE);
+					res = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
+
+					cout << res << endl;
 					assert(res >= 0);
 
-					cout << "Message: " << buffer << endl;
+					if (res == 0) {
+						cout << "CLOSED" << endl;
+						close(watch_fd[i].fd);
+						watch_fd.erase(watch_fd.begin() + i);
+					} else {
+						cout << "Message: " << buffer << endl;
 
-					string response = "Recv: ";
-					response += buffer;
+						string response = "Recv: ";
+						response += buffer;
 
-					res = write(watch_fd[i].fd, response.c_str(), response.length());
-					assert(res >= 0);
+						res = send(watch_fd[i].fd, response.c_str(), response.length(), 0);
+						assert(res >= 0);
+
+						watch_fd[i].revents = 0;
+					}
+
 				} else {
 					cerr << "other events happend" << endl;
 					cout << watch_fd[i].revents << endl;
-					//close(watch_fd[i].fd);
+					close(watch_fd[i].fd);
 					watch_fd.erase(watch_fd.begin() + i);
 				}
 
-				watch_fd[i].revents = 0;
 			}
 
 		}
