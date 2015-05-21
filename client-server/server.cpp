@@ -12,7 +12,7 @@ using namespace std;
 const size_t BUFFER_SIZE = 1024;
 const int POLL_TIMEOUT = 60 * 1000;
 
-void die(const char *message);
+void die(const char* message);
 
 int main(int argc, char *argv[]) {
 	if (argc < 2) {
@@ -94,6 +94,7 @@ int main(int argc, char *argv[]) {
 
 				close(watch_fd[i].fd);
 				watch_fd.erase(watch_fd.begin() + i);
+				cout << "A socket closed" << endl;
 			}
 
 		}
@@ -122,7 +123,7 @@ int main(int argc, char *argv[]) {
 	return EXIT_SUCCESS; 
 }
 
-void die(const char *message) {
+void die(const char* message) {
 	perror(message);
 	exit(EXIT_FAILURE);
 }

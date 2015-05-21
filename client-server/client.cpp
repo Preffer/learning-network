@@ -10,7 +10,7 @@
 using namespace std;
 const size_t BUFFER_SIZE = 1024;
 
-void die(const char *message);
+void die(const char* message);
 
 int main(int argc, char* argv[]) {
 	if (argc < 3) {
@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
 	return EXIT_SUCCESS;
 }
 
-void die(const char *message) {
+void die(const char* message) {
 	perror(message);
 	exit(EXIT_FAILURE);
 }
