@@ -17,32 +17,31 @@ void die(const char *message);
 int main(int argc, char *argv[]) {
 	if (argc < 2) {
 		cerr << "Error: port required" << endl;
-		cerr << "Usage: ./server <port>" << endl;
-		return EXIT_FAILURE;
+		cout << "Usage: ./server <port>" << endl;
+		exit(EXIT_FAILURE);
 	}
 
 	int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_fd < 0) {
-		die("Error on opening socket");
+		die("Error opening socket");
 	}
 
-	struct sockaddr_in server_addr, client_addr;
-
+	struct sockaddr_in server_addr;
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_addr.s_addr = INADDR_ANY;
 	server_addr.sin_port = htons(atoi(argv[1]));
 
 	char* buffer = new char[BUFFER_SIZE];
-	int res;
+	int result;
 
-	res = bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr));
-	if (res < 0) {
-		die("Error on binding");
+	result = bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr));
+	if (result < 0) {
+		die("Error binding address");
 	}
 	
-	res = listen(server_fd, SOMAXCONN);
-	if (res < 0) {
-		die("Error on listening");
+	result = listen(server_fd, SOMAXCONN);
+	if (result < 0) {
+		die("Error listening socket");
 	}
 
 	vector<struct pollfd> watch_fd(1);
@@ -50,16 +49,16 @@ int main(int argc, char *argv[]) {
 	watch_fd[0].events = POLLIN;
 
 	while (true) {
-		cout << "polling..." << endl;
+		cout << "Polling..." << endl;
 
-		res = poll(watch_fd.data(), watch_fd.size(), POLL_TIMEOUT);
-		if (res < 0) {
-			die("Error on poll()");
-		}
-
-		if (res == 0) {
-			cout << "poll() timed out, nothing happend" << endl;
-			continue;
+		result = poll(watch_fd.data(), watch_fd.size(), POLL_TIMEOUT);
+		if (result <= 0) {
+			if (result == 0) {
+				cout << "poll() timed out, no event happend" << endl;
+				continue;
+			} else {
+				die("Error on poll()");
+			}
 		}
 
 		for (size_t i = 1; i < watch_fd.size(); i++) {
@@ -69,30 +68,29 @@ int main(int argc, char *argv[]) {
 				if (watch_fd[i].revents == POLLIN) {
 					memset(buffer, 0, BUFFER_SIZE);
 
-					res = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
-					if (res > 0) {
-						cout << "Message: " << buffer << " Length: " << res << endl;
+					result = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
+					if (result > 0) {
+						cout << "Message: " << buffer << " Length: " << result << endl;
 
-						string response = "Recv: ";
+						string response("Recv: ");
 						response += buffer;
 
-						res = send(watch_fd[i].fd, response.c_str(), response.length(), 0);
-						if (res > 0) {
+						result = send(watch_fd[i].fd, response.c_str(), response.length(), 0);
+						if (result > 0) {
 							watch_fd[i].revents = 0;
 							continue;
 						} else {
 							perror("Error on send()");
 						}
 					} else {
-						if (res == 0) {
-							cout << "Close connection" << endl;
+						if (result == 0) {
+							cout << "A client disconnected" << endl;
 						} else {
 							perror("Error on recv()");
 						}
 					}
 				} else {
-					cerr << "Unexpected events happend" << endl;
-					cout << watch_fd[i].revents << endl;
+					cerr << "Unexpected events happend: " << watch_fd[i].revents << endl;
 				}
 
 				close(watch_fd[i].fd);
@@ -102,11 +100,14 @@ int main(int argc, char *argv[]) {
 		}
 
 		if (watch_fd[0].revents == POLLIN) {
+			struct sockaddr_in client_addr;
 			socklen_t client_addr_length =  sizeof(client_addr);
 			int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_length);
 			if (client_fd < 0) {
 				perror("Error on accept()");
 			}
+
+			cout << "A client connected" << endl;
 
 			struct pollfd new_fd;
 			new_fd.fd = client_fd;
