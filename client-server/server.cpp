@@ -2,14 +2,15 @@
 #include <vector>
 #include <cstdlib>
 #include <cstring>
-#include <cassert>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/poll.h>
 #include <netinet/in.h>
 
-using namespace std;
+#undef NDEBUG
+#include <cassert>
 
+using namespace std;
 const size_t BUFFER_SIZE = 1024;
 
 int main(int argc, char *argv[]) {
@@ -52,7 +53,7 @@ int main(int argc, char *argv[]) {
 			continue;
 		}
 
-		for (int i = 1; i < watch_fd.size(); i++) {
+		for (size_t i = 1; i < watch_fd.size(); i++) {
 			if (watch_fd[i].revents == 0) {
 				continue;
 			} else {
