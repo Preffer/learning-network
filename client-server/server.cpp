@@ -75,13 +75,13 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
+		// handle active client
 		for (size_t i = 1; i < watch_fd.size(); i++) {
 			if (watch_fd[i].revents == 0) {
 				continue;
 			} else {
 				if (watch_fd[i].revents == POLLIN) {
 					memset(buffer, 0, BUFFER_SIZE);
-
 					result = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
 					if (result > 0) {
 						string response = onCommand(buffer);
@@ -111,6 +111,7 @@ int main(int argc, char *argv[]) {
 
 		}
 
+		// handle new client
 		if (watch_fd[0].revents == POLLIN) {
 			struct sockaddr_in client_addr;
 			socklen_t client_addr_length =  sizeof(client_addr);
@@ -125,7 +126,7 @@ int main(int argc, char *argv[]) {
 
 			cout << format("Client connected, ID: %1%, IP: %2%, Port: %3%") % client_fd % ip % port << endl;			
 
-			string hello = to_string(client_fd);
+			string hello = (format("Client ID: %1%") % client_fd).str();
 			result = send(client_fd, hello.c_str(), hello.length(), 0);
 
 			if (result > 0) {
