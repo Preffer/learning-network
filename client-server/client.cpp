@@ -1,3 +1,13 @@
+/* socket-client
+ *
+ * Simple socket client implementation
+ * 2015 Yuzo(Huang Yuzhong)
+ *
+ * Program arch:
+ * 		Master thread: Recv message from server and print to cout. Block on recv().
+ * 		Child thread: Read user input from cin and send to server. Block on getline().
+ */
+
 #include <iostream>
 #include <thread>
 #include <cstdio>
