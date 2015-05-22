@@ -16,7 +16,7 @@ const size_t BUFFER_SIZE = 1024;
 
 void die(const char* message);
 void show_usage();
-void recv_cin(int client_fd);
+void read_input(int client_fd);
 
 int main(int argc, char* argv[]) {
 	if (argc < 3) {
@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 
 	struct hostent* server = gethostbyname(argv[1]);
 	if (server == NULL) {
-		cerr << "Can't resolve server: " << argv[1] << endl;
+		cerr << format("Can't resolve server: %1%") % argv[1] << endl;
 		exit(EXIT_FAILURE);
 	}
 
@@ -41,22 +41,20 @@ int main(int argc, char* argv[]) {
 	memcpy(&server_addr.sin_addr.s_addr, server->h_addr, server->h_length);
 	server_addr.sin_port = htons(atoi(argv[2]));
 
-	int result = connect(client_fd, (struct sockaddr *) &server_addr, sizeof(server_addr));
-	if (result < 0) {
+	if (connect(client_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
 		die("Error connecting server");
 	}
 
-	show_usage();
-	cout << "Connected to " << argv[1] << ":" << argv[2] << endl;
-	char* buffer = new char[BUFFER_SIZE];
+	thread input(read_input, client_fd);
+	input.detach();
 
-	thread recv_thread(recv_cin, client_fd);
-	recv_thread.detach();
+	show_usage();
+	cout << format("Connected to %1%:%2%") % argv[1] % argv[2] << endl;
+	char* buffer = new char[BUFFER_SIZE];
 
 	while (true) {
 		memset(buffer, 0, BUFFER_SIZE);
-		result = recv(client_fd, buffer, BUFFER_SIZE, 0);
-		if (result < 0) {
+		if (recv(client_fd, buffer, BUFFER_SIZE, 0) < 0) {
 			die("Error on recv()");
 		}
 		cout << buffer << endl;
@@ -73,15 +71,16 @@ void die(const char* message) {
 }
 
 void show_usage() {
-	cout << "Usage: " << endl;
-	cout << "\ttime\t\t\tget server time" << endl;
-	cout << "\tname\t\t\tget server name" << endl;
-	cout << "\tlist\t\t\tget client list" << endl;
-	cout << "\tsend <ID> <text>\tsend text to client@ID" << endl;
-	cout << "\tquit\t\t\tquit and bye" << endl << endl;
+	cout <<
+		"Usage:\n"
+		"\ttime\t\t\tget server time\n"
+		"\tname\t\t\tget server name\n"
+		"\tlist\t\t\tget client list\n"
+		"\tsend <ID> <text>\tsend text to client@ID\n"
+		"\tquit\t\t\tquit and bye\n\n";
 }
 
-void recv_cin(int client_fd) {
+void read_input(int client_fd) {
 	string command;
 
 	while (true) {
@@ -90,16 +89,15 @@ void recv_cin(int client_fd) {
 		if (command.find("quit") == 0) {
 			cout << "bye~" << endl;
 			exit(EXIT_SUCCESS);
-			break;
 		}
 
 		if (command == "time" || command == "name" || command == "list" || command.find("send") == 0) {
-			int result = send(client_fd, command.c_str(), command.length(), 0);
-			if (result < 0) {
+			if (send(client_fd, command.c_str(), command.length(), 0) < 0) {
 				die("Error on send()");
 			}
 		} else {
 			cout << "Invalid Command" << endl;
+			cout << "> " << flush;
 		}
 	}
 }
