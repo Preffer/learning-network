@@ -46,13 +46,11 @@ int main(int argc, char *argv[]) {
 	server_addr.sin_addr.s_addr = INADDR_ANY;
 	server_addr.sin_port = htons(atoi(argv[1]));
 
-	int result = bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr));
-	if (result < 0) {
+	if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
 		die("Error binding address");
 	}
 	
-	result = listen(server_fd, SOMAXCONN);
-	if (result < 0) {
+	if (listen(server_fd, SOMAXCONN) < 0) {
 		die("Error listening socket");
 	}
 
@@ -65,9 +63,9 @@ int main(int argc, char *argv[]) {
 	while (true) {
 		cout << "Polling..." << endl;
 
-		result = poll(watch_fd.data(), watch_fd.size(), POLL_TIMEOUT);
-		if (result <= 0) {
-			if (result == 0) {
+		int active = poll(watch_fd.data(), watch_fd.size(), POLL_TIMEOUT);
+		if (active <= 0) {
+			if (active == 0) {
 				cout << "poll() time out, no event happend" << endl;
 				continue;
 			} else {
@@ -82,19 +80,19 @@ int main(int argc, char *argv[]) {
 			} else {
 				if (watch_fd[i].revents == POLLIN) {
 					memset(buffer, 0, BUFFER_SIZE);
-					result = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
-					if (result > 0) {
-						string response = onCommand(buffer);
-						result = send(watch_fd[i].fd, response.c_str(), response.length(), 0);
+					int bytes = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
 
-						if (result > 0) {
+					if (bytes > 0) {
+						string response = onCommand(buffer);
+
+						if (send(watch_fd[i].fd, response.c_str(), response.length(), 0) > 0) {
 							watch_fd[i].revents = 0;
 							continue;
 						} else {
 							perror("Error on send()");
 						}
 					} else {
-						if (result == 0) {
+						if (bytes == 0) {
 							cout << "Client disconnected" << endl;
 						} else {
 							perror("Error on recv()");
@@ -127,9 +125,8 @@ int main(int argc, char *argv[]) {
 			cout << format("Client connected, ID: %1%, IP: %2%, Port: %3%") % client_fd % ip % port << endl;			
 
 			string hello = (format("Client ID: %1%") % client_fd).str();
-			result = send(client_fd, hello.c_str(), hello.length(), 0);
 
-			if (result > 0) {
+			if (send(client_fd, hello.c_str(), hello.length(), 0) > 0) {
 				struct pollfd poll_fd;
 				poll_fd.fd = client_fd;
 				poll_fd.events = POLLIN;
@@ -202,8 +199,7 @@ string onSend(const string& command) {
 	if (onlineClient.find(dest_fd) == onlineClient.end()) {
 		return "No such client";
 	} else {
-		int result = send(dest_fd, words[2].c_str(), words[2].length(), 0);
-		if (result > 0) {
+		if (send(dest_fd, words[2].c_str(), words[2].length(), 0) > 0) {
 			return "Success";
 		} else {
 			return "Failed";
