@@ -96,13 +96,12 @@ int main(int argc, char *argv[]) {
 						string response;
 
 						if (end == NULL) {
-							response = "Bad request";
+							response = "Bad request\n";
 						} else {
 							*end = 0;
 							response = onCommand(buffer);
 						}
 
-						response += '\n';
 						if (send(watch_fd[i].fd, response.c_str(), response.length(), 0) > 0) {
 							watch_fd[i].revents = 0;
 							continue;
@@ -182,21 +181,20 @@ string onCommand(const string& command) {
 		return onSend(command);
 	}
 
-	return "Invalid Command";
+	return "Invalid Command\n";
 }
 
 string onTime() {
 	time_t now = time(NULL);
-	char* str = ctime(&now);
-	char* end = strchr(str, '\n');
-	*end = 0;
-
-	return str;
+	return ctime(&now);
 }
 
 string onName() {
 	char hostname[128];
 	gethostname(hostname, 127);
+	char* end = strchr(hostname, '\0');
+	end[0] = '\n';
+	end[1] = '\0';
 	return hostname;
 }
 
@@ -213,19 +211,19 @@ string onSend(const string& command) {
 	split(words, command, boost::is_any_of(" "));
 
 	if (words.size() != 3) {
-		return "Invalid Command";
+		return "Invalid Command\n";
 	}
 
 	int dest_fd = stoi(words[1]);
 
 	if (onlineClient.find(dest_fd) == onlineClient.end()) {
-		return "No such client";
+		return "No such client\n";
 	} else {
 		words[2] += '\n';
 		if (send(dest_fd, words[2].c_str(), words[2].length(), 0) > 0) {
-			return "Success";
+			return "Success\n";
 		} else {
-			return "Failed";
+			return "Failed\n";
 		}
 	}
 }
