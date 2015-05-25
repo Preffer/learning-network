@@ -3,7 +3,7 @@
  * Simple socket client implementation
  * 2015 Yuzo(Huang Yuzhong)
  *
- * Program arch:
+ * Client program arch:
  * 		Master thread: Recv message from server and print to cout. Block on recv().
  * 		Child thread: Read user input from cin and send to server. Block on getline().
  */
@@ -96,18 +96,14 @@ void read_input(int client_fd) {
 	while (true) {
 		getline(cin, command);
 
-		if (command.find("quit") == 0) {
+		if (command == "quit") {
 			cout << "bye~" << endl;
 			exit(EXIT_SUCCESS);
 		}
 
-		if (command == "time" || command == "name" || command == "list" || command.find("send") == 0) {
-			if (send(client_fd, command.c_str(), command.length(), 0) < 0) {
-				die("Error on send()");
-			}
-		} else {
-			cout << "Invalid Command" << endl;
-			cout << "> " << flush;
+		command += "\n";
+		if (send(client_fd, command.c_str(), command.length(), 0) < 0) {
+			die("Error on send()");
 		}
 	}
 }
