@@ -169,7 +169,6 @@ void die(const char* message) {
 }
 
 string onCommand(const string& command) {
-	cout << command << " " << command.size() << endl;
 	if (command == "time") {
 		return onTime();
 	}

@@ -64,11 +64,18 @@ int main(int argc, char* argv[]) {
 
 	while (true) {
 		memset(buffer, 0, BUFFER_SIZE);
-		if (recv(client_fd, buffer, BUFFER_SIZE, 0) < 0) {
-			die("Error on recv()");
+		int bytes = recv(client_fd, buffer, BUFFER_SIZE, 0);
+		if (bytes > 0) {
+			cout << '\r' << buffer << flush;
+			cout << "> " << flush;
+		} else {
+			if (bytes == 0) {
+				cout << '\r' << "Server disconnected" << endl;
+				break;
+			} else {
+				die("Error on recv()");
+			}
 		}
-		cout << '\r' << buffer << flush;
-		cout << "> " << flush;
 	}
 
 	close(client_fd);
