@@ -1,3 +1,12 @@
+/* socket-server
+ *
+ * Simple poll socket server implementation based on poll()
+ * 2015 Yuzo(Huang Yuzhong)
+ *
+ * Server program arch:
+ * 		Master thread: Use poll() to handle multiple client.
+ */
+
 #include <iostream>
 #include <vector>
 #include <map>
@@ -83,8 +92,17 @@ int main(int argc, char *argv[]) {
 					int bytes = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
 
 					if (bytes > 0) {
-						string response = onCommand(buffer);
+						char* end = strchr(buffer, '\n');
+						string response;
 
+						if (end == NULL) {
+							response = "Bad request";
+						} else {
+							*end = 0;
+							response = onCommand(buffer);
+						}
+
+						response += '\n';
 						if (send(watch_fd[i].fd, response.c_str(), response.length(), 0) > 0) {
 							watch_fd[i].revents = 0;
 							continue;
@@ -124,7 +142,7 @@ int main(int argc, char *argv[]) {
 
 			cout << format("Client connected, ID: %1%, IP: %2%, Port: %3%") % client_fd % ip % port << endl;			
 
-			string hello = (format("Client ID: %1%") % client_fd).str();
+			string hello = (format("Client ID: %1%\n") % client_fd).str();
 
 			if (send(client_fd, hello.c_str(), hello.length(), 0) > 0) {
 				struct pollfd poll_fd;
@@ -151,6 +169,7 @@ void die(const char* message) {
 }
 
 string onCommand(const string& command) {
+	cout << command << " " << command.size() << endl;
 	if (command == "time") {
 		return onTime();
 	}
@@ -169,7 +188,11 @@ string onCommand(const string& command) {
 
 string onTime() {
 	time_t now = time(NULL);
-	return ctime(&now);
+	char* str = ctime(&now);
+	char* end = strchr(str, '\n');
+	*end = 0;
+
+	return str;
 }
 
 string onName() {
@@ -199,6 +222,7 @@ string onSend(const string& command) {
 	if (onlineClient.find(dest_fd) == onlineClient.end()) {
 		return "No such client";
 	} else {
+		words[2] += '\n';
 		if (send(dest_fd, words[2].c_str(), words[2].length(), 0) > 0) {
 			return "Success";
 		} else {

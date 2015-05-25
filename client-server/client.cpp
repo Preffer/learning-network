@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
 		if (recv(client_fd, buffer, BUFFER_SIZE, 0) < 0) {
 			die("Error on recv()");
 		}
-		cout << buffer << endl;
+		cout << '\r' << buffer << flush;
 		cout << "> " << flush;
 	}
 
@@ -101,7 +101,7 @@ void read_input(int client_fd) {
 			exit(EXIT_SUCCESS);
 		}
 
-		command += "\n";
+		command += '\n';
 		if (send(client_fd, command.c_str(), command.length(), 0) < 0) {
 			die("Error on send()");
 		}
