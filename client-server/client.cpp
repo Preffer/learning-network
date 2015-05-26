@@ -1,23 +1,31 @@
 /* socket-client
- *
- * Simple socket client implementation
- * 2015 Yuzo(Huang Yuzhong)
- *
- * Client program arch:
- * 		Master thread: Recv message from server and print to cout. Block on recv().
- * 		Child thread: Read user input from cin and send to server. Block on getline().
- */
+*
+* Simple socket client implementation
+* 2015 Yuzo(Huang Yuzhong)
+*
+* Client program arch:
+* 		Master thread: Recv message from server and print to cout. Block on recv().
+* 		Child thread: Read user input from cin and send to server. Block on getline().
+*/
 
 #include <iostream>
 #include <thread>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netdb.h>
 #include <boost/format.hpp>
+
+#ifdef _WIN32
+	#define _WINSOCK_DEPRECATED_NO_WARNINGS
+	#include <winsock2.h>
+	#define close closesocket
+	#pragma comment(lib, "ws2_32.lib")
+#else
+	#include <unistd.h>
+	#include <sys/socket.h>
+	#include <netinet/in.h>
+	#include <netdb.h>
+#endif
 
 using namespace std;
 using namespace boost;
@@ -34,6 +42,14 @@ int main(int argc, char* argv[]) {
 		cout << format("Usage: %1% <hostname> <port>") % argv[0] << endl;
 		exit(EXIT_FAILURE);
 	}
+
+#ifdef _WIN32
+	WSADATA wsa;
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+		cerr << format("Error initializing winsock: %1%") % WSAGetLastError() << endl;
+		exit(EXIT_FAILURE);
+	}
+#endif
 
 	int client_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (client_fd < 0) {
