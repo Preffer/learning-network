@@ -38,8 +38,8 @@
 
 using namespace std;
 using namespace boost;
-typedef pair <char*, uint16_t> ClientInfo;
-typedef map <int, ClientInfo> ClientMap;
+typedef pair<char*, uint16_t> ClientInfo;
+typedef map<int, ClientInfo> ClientMap;
 
 const size_t BUFFER_SIZE = 1024;
 const int POLL_TIMEOUT = 60 * 1000;
@@ -48,7 +48,7 @@ ClientMap online;
 void die(const char* message);
 string onCommand(const string& command, int client_fd);
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
 	if (argc < 2) {
 		cerr << "Error: port required" << endl;
 		cout << format("Usage: %1% <port>") % argv[0] << endl;
