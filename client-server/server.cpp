@@ -1,11 +1,16 @@
 /* socket-server
- *
- * Simple poll socket server implementation based on poll()
- * 2015 Yuzo(Huang Yuzhong)
- *
- * Server program arch:
- * 		Master thread: Use poll() to handle multiple client.
- */
+*
+* Simple socket server implementation based on poll()
+* 2015 Yuzo(Huang Yuzhong)
+*
+* Server program arch:
+* 		Master thread: Use poll() to handle multiple client.
+*/
+
+#ifdef _WIN32
+	#define _CRT_SECURE_NO_WARNINGS
+	#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#endif
 
 #include <iostream>
 #include <vector>
@@ -14,12 +19,20 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <sys/poll.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <boost/format.hpp>
+
+#ifdef _WIN32
+	#include <winsock2.h>
+	#define poll WSAPoll
+	#define close closesocket
+	#pragma comment(lib, "ws2_32.lib")
+#else
+	#include <unistd.h>
+	#include <sys/socket.h>
+	#include <sys/poll.h>
+	#include <netinet/in.h>
+	#include <arpa/inet.h>
+#endif
 
 using namespace std;
 using namespace boost;
@@ -40,6 +53,14 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
+#ifdef _WIN32
+	WSADATA wsa;
+	if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+		cerr << format("Error initializing winsock: %1%") % WSAGetLastError() << endl;
+		exit(EXIT_FAILURE);
+	}
+#endif
+
 	int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_fd < 0) {
 		die("Error opening socket");
@@ -50,10 +71,10 @@ int main(int argc, char *argv[]) {
 	server_addr.sin_addr.s_addr = INADDR_ANY;
 	server_addr.sin_port = htons(atoi(argv[1]));
 
-	if (bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
+	if (::bind(server_fd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) {
 		die("Error binding address");
 	}
-	
+
 	if (listen(server_fd, SOMAXCONN) < 0) {
 		die("Error listening socket");
 	}
@@ -116,7 +137,7 @@ int main(int argc, char *argv[]) {
 		// handle new client
 		if (watch_fd[0].revents == POLLIN) {
 			struct sockaddr_in client_addr;
-			socklen_t client_addr_length =  sizeof(client_addr);
+			int client_addr_length = sizeof(client_addr);
 
 			int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_length);
 			if (client_fd > 0) {
@@ -146,7 +167,12 @@ int main(int argc, char *argv[]) {
 	}
 
 	close(server_fd);
-	return EXIT_SUCCESS; 
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
+
+	return EXIT_SUCCESS;
 }
 
 void die(const char* message) {
@@ -199,7 +225,7 @@ string onCommand(const string& command, int client_fd) {
 					return "Send failed\n";
 				}
 			}
-		} catch (const invalid_argument& e) {
+		} catch (const invalid_argument&) {
 			return "Invalid command\n";
 		}
 	}
