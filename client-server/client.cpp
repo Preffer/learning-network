@@ -94,6 +94,11 @@ int main(int argc, char* argv[]) {
 	}
 
 	close(client_fd);
+
+#ifdef _WIN32
+	WSACleanup();
+#endif
+
 	return EXIT_SUCCESS;
 }
 
