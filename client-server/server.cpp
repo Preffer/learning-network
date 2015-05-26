@@ -178,20 +178,28 @@ string onCommand(const string& command, int client_fd) {
 	}
 
 	if (command.find("send") == 0) {
-		size_t begin = command.find(' ');
-		size_t end = command.find(' ', begin + 1);
+		try {
+			size_t begin = command.find(' ');
+			size_t end = command.find(' ', begin + 1);
 
-		int dest_fd = stoi(command.substr(begin, end));
-
-		if (onlineClient.find(dest_fd) == onlineClient.end()) {
-			return "No such client\n";
-		} else {
-			string message = (format("Client#%1%: %2%") % client_fd % command.substr(end + 1)).str();
-			if (send(dest_fd, message.c_str(), message.length(), 0) > 0) {
-				return "Send success\n";
-			} else {
-				return "Send failed\n";
+			if (end == string::npos) {
+				return "Invalid command\n";
 			}
+
+			int dest_fd = stoi(command.substr(begin, end));
+
+			if (onlineClient.find(dest_fd) == onlineClient.end()) {
+				return "No such client\n";
+			} else {
+				string message = (format("Client#%1%: %2%") % client_fd % command.substr(end + 1)).str();
+				if (send(dest_fd, message.c_str(), message.length(), 0) > 0) {
+					return "Send success\n";
+				} else {
+					return "Send failed\n";
+				}
+			}
+		} catch (const invalid_argument& e) {
+			return "Invalid command\n";
 		}
 	}
 
