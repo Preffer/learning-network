@@ -1,4 +1,5 @@
-/* socket-server
+/*
+* socket-server
 *
 * Simple socket server implementation based on poll()
 * 2015 Yuzo(Huang Yuzhong)

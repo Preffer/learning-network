@@ -1,4 +1,5 @@
-/* socket-client
+/*
+* socket-client
 *
 * Simple socket client implementation
 * 2015 Yuzo(Huang Yuzhong)
