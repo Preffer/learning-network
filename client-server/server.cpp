@@ -26,6 +26,7 @@
 	#include <winsock2.h>
 	#define poll WSAPoll
 	#define close closesocket
+	#define POLLIN POLLRDNORM
 	#pragma comment(lib, "ws2_32.lib")
 #else
 	#include <unistd.h>
