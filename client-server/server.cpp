@@ -28,7 +28,7 @@ typedef map <int, ClientInfo> ClientMap;
 
 const size_t BUFFER_SIZE = 1024;
 const int POLL_TIMEOUT = 60 * 1000;
-ClientMap onlineClient;
+ClientMap online;
 
 void die(const char* message);
 string onCommand(const string& command, int client_fd);
@@ -108,6 +108,7 @@ int main(int argc, char *argv[]) {
 
 				close(watch_fd[i].fd);
 				cout << format("Socket#%1% closed") % watch_fd[i].fd << endl;
+				online.erase(watch_fd[i].fd);
 				watch_fd.erase(watch_fd.begin() + i);
 			}
 		}
@@ -132,7 +133,7 @@ int main(int argc, char *argv[]) {
 					poll_fd.events = POLLIN;
 
 					watch_fd.push_back(poll_fd);
-					onlineClient[client_fd] = ClientInfo(ip, port);
+					online[client_fd] = ClientInfo(ip, port);
 				} else {
 					perror("Error on send()");
 				}
@@ -171,7 +172,7 @@ string onCommand(const string& command, int client_fd) {
 
 	if (command == "list\n") {
 		string response;
-		for (auto client : onlineClient) {
+		for (auto client : online) {
 			response += (format("ID: %1%,\tIP: %2%,\tPort: %3%\n") % client.first % client.second.first % client.second.second).str();
 		}
 		return response;
@@ -188,7 +189,7 @@ string onCommand(const string& command, int client_fd) {
 
 			int dest_fd = stoi(command.substr(begin, end));
 
-			if (onlineClient.find(dest_fd) == onlineClient.end()) {
+			if (online.find(dest_fd) == online.end()) {
 				return "No such client\n";
 			} else {
 				string message = (format("Client#%1%: %2%") % client_fd % command.substr(end + 1)).str();
