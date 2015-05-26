@@ -20,7 +20,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <boost/format.hpp>
-#include <boost/algorithm/string.hpp>
 
 using namespace std;
 using namespace boost;
@@ -36,7 +35,7 @@ string onCommand(const string& command);
 string onTime();
 string onName();
 string onList();
-string onSend(const string& command);
+string onSend(string command);
 
 int main(int argc, char *argv[]) {
 	if (argc < 2) {
@@ -206,21 +205,22 @@ string onList() {
 	return response;
 }
 
-string onSend(const string& command) {
-	vector<string> words;
-	split(words, command, boost::is_any_of(" "));
+string onSend(string command) {
+	command.erase(0, 5);
 
-	if (words.size() != 3) {
-		return "Invalid Command\n";
-	}
+	size_t space = command.find(" ");
 
-	int dest_fd = stoi(words[1]);
+	int dest_fd = stoi(command.substr(0, space));
+	cout << dest_fd << endl;
 
+	string message = command.substr(space + 1);
+	cout << message << endl;
+
+	message += '\n';
 	if (onlineClient.find(dest_fd) == onlineClient.end()) {
 		return "No such client\n";
 	} else {
-		words[2] += '\n';
-		if (send(dest_fd, words[2].c_str(), words[2].length(), 0) > 0) {
+		if (send(dest_fd, message.c_str(), message.length(), 0) > 0) {
 			return "Success\n";
 		} else {
 			return "Failed\n";

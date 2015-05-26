@@ -66,8 +66,7 @@ int main(int argc, char* argv[]) {
 		memset(buffer, 0, BUFFER_SIZE);
 		int bytes = recv(client_fd, buffer, BUFFER_SIZE, 0);
 		if (bytes > 0) {
-			cout << '\r' << buffer << flush;
-			cout << "> " << flush;
+			cout << '\r' << buffer << "> " << flush;
 		} else {
 			if (bytes == 0) {
 				cout << '\r' << "Server disconnected" << endl;
@@ -98,18 +97,17 @@ void show_usage() {
 }
 
 void read_input(int client_fd) {
-	string command;
+	char* buffer = new char[BUFFER_SIZE];
 
 	while (true) {
-		getline(cin, command);
+		fgets(buffer, BUFFER_SIZE, stdin);
 
-		if (command == "quit") {
+		if (strcmp(buffer, "quit\n") == 0) {
 			cout << "bye~" << endl;
 			exit(EXIT_SUCCESS);
 		}
 
-		command += '\n';
-		if (send(client_fd, command.c_str(), command.length(), 0) < 0) {
+		if (send(client_fd, buffer, strlen(buffer), 0) < 0) {
 			die("Error on send()");
 		}
 	}
