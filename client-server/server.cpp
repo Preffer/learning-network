@@ -32,10 +32,6 @@ ClientMap onlineClient;
 
 void die(const char* message);
 string onCommand(const string& command);
-string onTime();
-string onName();
-string onList();
-string onSend(string command);
 
 int main(int argc, char *argv[]) {
 	if (argc < 2) {
@@ -91,15 +87,7 @@ int main(int argc, char *argv[]) {
 					int bytes = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
 
 					if (bytes > 0) {
-						char* end = strchr(buffer, '\n');
-						string response;
-
-						if (end == NULL) {
-							response = "Bad request\n";
-						} else {
-							*end = 0;
-							response = onCommand(buffer);
-						}
+						string response = onCommand(buffer);
 
 						if (send(watch_fd[i].fd, response.c_str(), response.length(), 0) > 0) {
 							watch_fd[i].revents = 0;
@@ -167,63 +155,46 @@ void die(const char* message) {
 }
 
 string onCommand(const string& command) {
-	if (command == "time") {
-		return onTime();
+	if (command.find('\n') == string::npos) {
+		return "Bad request\n";
 	}
-	if (command == "name") {
-		return onName();
+
+	if (command == "time\n") {
+		time_t now = time(NULL);
+		return ctime(&now);
 	}
-	if (command == "list") {
-		return onList();
+
+	if (command == "name\n") {
+		char hostname[128];
+		gethostname(hostname, 128);
+		return string(hostname) + '\n';
 	}
+
+	if (command == "list\n") {
+		string response;
+		for (auto client : onlineClient) {
+			response += (format("ID: %1%,\tIP: %2%,\tPort: %3%\n") % client.first % client.second.first % client.second.second).str();
+		}
+		return response;
+	}
+
 	if (command.find("send") == 0) {
-		return onSend(command);
+		size_t begin = command.find(' ');
+		size_t end = command.find(' ', begin + 1);
+
+		int dest_fd = stoi(command.substr(begin, end));
+		string message = command.substr(end + 1);
+
+		if (onlineClient.find(dest_fd) == onlineClient.end()) {
+			return "No such client\n";
+		} else {
+			if (send(dest_fd, message.c_str(), message.length(), 0) > 0) {
+				return "Success\n";
+			} else {
+				return "Failed\n";
+			}
+		}
 	}
 
 	return "Invalid Command\n";
-}
-
-string onTime() {
-	time_t now = time(NULL);
-	return ctime(&now);
-}
-
-string onName() {
-	char hostname[128];
-	gethostname(hostname, 127);
-	char* end = strchr(hostname, '\0');
-	end[0] = '\n';
-	end[1] = '\0';
-	return hostname;
-}
-
-string onList() {
-	string response;
-	for (auto client : onlineClient) {
-		response.append((format("ID: %1%,\tIP: %2%,\tPort: %3%\n") % client.first % client.second.first % client.second.second).str());
-	}
-	return response;
-}
-
-string onSend(string command) {
-	command.erase(0, 5);
-
-	size_t space = command.find(" ");
-
-	int dest_fd = stoi(command.substr(0, space));
-	cout << dest_fd << endl;
-
-	string message = command.substr(space + 1);
-	cout << message << endl;
-
-	message += '\n';
-	if (onlineClient.find(dest_fd) == onlineClient.end()) {
-		return "No such client\n";
-	} else {
-		if (send(dest_fd, message.c_str(), message.length(), 0) > 0) {
-			return "Success\n";
-		} else {
-			return "Failed\n";
-		}
-	}
 }
