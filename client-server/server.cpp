@@ -31,7 +31,7 @@ const int POLL_TIMEOUT = 60 * 1000;
 ClientMap onlineClient;
 
 void die(const char* message);
-string onCommand(const string& command);
+string onCommand(const string& command, int client_fd);
 
 int main(int argc, char *argv[]) {
 	if (argc < 2) {
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
 					int bytes = recv(watch_fd[i].fd, buffer, BUFFER_SIZE, 0);
 
 					if (bytes > 0) {
-						string response = onCommand(buffer);
+						string response = onCommand(buffer, watch_fd[i].fd);
 
 						if (send(watch_fd[i].fd, response.c_str(), response.length(), 0) > 0) {
 							watch_fd[i].revents = 0;
@@ -97,20 +97,19 @@ int main(int argc, char *argv[]) {
 						}
 					} else {
 						if (bytes == 0) {
-							cout << "Client disconnected" << endl;
+							cout << format("Client#%1% disconnected") % watch_fd[i].fd << endl;
 						} else {
 							perror("Error on recv()");
 						}
 					}
 				} else {
-					cerr << "Unexpected events happend: " << watch_fd[i].revents << endl;
+					cerr << format("Unexpected event happend: %1%") % watch_fd[i].revents << endl;
 				}
 
 				close(watch_fd[i].fd);
+				cout << format("Socket#%1% closed") % watch_fd[i].fd << endl;
 				watch_fd.erase(watch_fd.begin() + i);
-				cout << "A socket closed" << endl;
 			}
-
 		}
 
 		// handle new client
@@ -119,26 +118,26 @@ int main(int argc, char *argv[]) {
 			socklen_t client_addr_length =  sizeof(client_addr);
 
 			int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_length);
-			if (client_fd < 0) {
-				perror("Error on accept()");
-			}
+			if (client_fd > 0) {
+				char* ip = inet_ntoa(client_addr.sin_addr);
+				uint16_t port = ntohs(client_addr.sin_port);
 
-			char* ip = inet_ntoa(client_addr.sin_addr);
-			uint16_t port = ntohs(client_addr.sin_port);
+				cout << format("Client connected, ID: %1%, IP: %2%, Port: %3%") % client_fd % ip % port << endl;
 
-			cout << format("Client connected, ID: %1%, IP: %2%, Port: %3%") % client_fd % ip % port << endl;			
+				string hello = (format("Client ID: %1%\n") % client_fd).str();
 
-			string hello = (format("Client ID: %1%\n") % client_fd).str();
+				if (send(client_fd, hello.c_str(), hello.length(), 0) > 0) {
+					struct pollfd poll_fd;
+					poll_fd.fd = client_fd;
+					poll_fd.events = POLLIN;
 
-			if (send(client_fd, hello.c_str(), hello.length(), 0) > 0) {
-				struct pollfd poll_fd;
-				poll_fd.fd = client_fd;
-				poll_fd.events = POLLIN;
-
-				watch_fd.push_back(poll_fd);
-				onlineClient[client_fd] = ClientInfo(ip, port);
+					watch_fd.push_back(poll_fd);
+					onlineClient[client_fd] = ClientInfo(ip, port);
+				} else {
+					perror("Error on send()");
+				}
 			} else {
-				perror("Error on send()");
+				perror("Error on accept()");
 			}
 
 			watch_fd[0].revents = 0;
@@ -154,7 +153,7 @@ void die(const char* message) {
 	exit(EXIT_FAILURE);
 }
 
-string onCommand(const string& command) {
+string onCommand(const string& command, int client_fd) {
 	if (command.find('\n') == string::npos) {
 		return "Bad request\n";
 	}
@@ -183,18 +182,18 @@ string onCommand(const string& command) {
 		size_t end = command.find(' ', begin + 1);
 
 		int dest_fd = stoi(command.substr(begin, end));
-		string message = command.substr(end + 1);
 
 		if (onlineClient.find(dest_fd) == onlineClient.end()) {
 			return "No such client\n";
 		} else {
+			string message = (format("Client#%1%: %2%") % client_fd % command.substr(end + 1)).str();
 			if (send(dest_fd, message.c_str(), message.length(), 0) > 0) {
-				return "Success\n";
+				return "Send success\n";
 			} else {
-				return "Failed\n";
+				return "Send failed\n";
 			}
 		}
 	}
 
-	return "Invalid Command\n";
+	return "Invalid command\n";
 }

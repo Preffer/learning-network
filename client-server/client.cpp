@@ -92,7 +92,7 @@ void show_usage() {
 		"\ttime\t\t\tget server time\n"
 		"\tname\t\t\tget server name\n"
 		"\tlist\t\t\tget client list\n"
-		"\tsend <ID> <text>\tsend text to client@ID\n"
+		"\tsend <ID> <text>\tsend text to client#ID\n"
 		"\tquit\t\t\tquit and bye\n\n";
 }
 
@@ -100,15 +100,16 @@ void read_input(int client_fd) {
 	char* buffer = new char[BUFFER_SIZE];
 
 	while (true) {
-		fgets(buffer, BUFFER_SIZE, stdin);
-
-		if (strcmp(buffer, "quit\n") == 0) {
-			cout << "bye~" << endl;
-			exit(EXIT_SUCCESS);
-		}
-
-		if (send(client_fd, buffer, strlen(buffer), 0) < 0) {
-			die("Error on send()");
+		if (fgets(buffer, BUFFER_SIZE, stdin) != NULL) {
+			if (strcmp(buffer, "quit\n") == 0) {
+				cout << "bye~" << endl;
+				exit(EXIT_SUCCESS);
+			}
+			if (send(client_fd, buffer, strlen(buffer), 0) < 0) {
+				die("Error on send()");
+			}
+		} else {
+			die("Error on fgets()");
 		}
 	}
 }
