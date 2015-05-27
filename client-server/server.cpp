@@ -39,7 +39,7 @@
 
 using namespace std;
 using namespace boost;
-typedef pair<char*, uint16_t> ClientInfo;
+typedef pair<string, uint16_t> ClientInfo;
 typedef map<int, ClientInfo> ClientMap;
 
 const size_t BUFFER_SIZE = 1024;
