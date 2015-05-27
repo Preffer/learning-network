@@ -27,7 +27,7 @@
 	#define poll WSAPoll
 	#define close closesocket
 	#define POLLIN POLLRDNORM
-	typedef socklen_t int;
+	#define socklen_t int
 	#pragma comment(lib, "ws2_32.lib")
 #else
 	#include <unistd.h>
