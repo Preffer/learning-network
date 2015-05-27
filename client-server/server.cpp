@@ -27,6 +27,7 @@
 	#define poll WSAPoll
 	#define close closesocket
 	#define POLLIN POLLRDNORM
+	typedef socklen_t int;
 	#pragma comment(lib, "ws2_32.lib")
 #else
 	#include <unistd.h>
@@ -139,7 +140,7 @@ int main(int argc, char* argv[]) {
 		// handle new client
 		if (watch_fd[0].revents == POLLIN) {
 			struct sockaddr_in client_addr;
-			int client_addr_length = sizeof(client_addr);
+			socklen_t client_addr_length = sizeof(client_addr);
 
 			int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, &client_addr_length);
 			if (client_fd > 0) {
