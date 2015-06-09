@@ -12,7 +12,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
-import java.util.Calendar;
+import java.util.Date;
 
 public class Peer implements Runnable {
 	private String localAddr;
@@ -66,7 +66,7 @@ public class Peer implements Runnable {
                 String[] words = line.split(" ");
                 while (in.readLine().length() > 0) {};
 
-            	System.out.format("[%s] %s:%d %s%n", logFormat.format(Calendar.getInstance().getTime()), clientAddr, clientPort, line);
+                System.out.format("[%s] %s:%d %s%n", logFormat.format(new Date()), clientAddr, clientPort, line);
 
                 switch (words[0]) {
                 	case "GET":
@@ -119,7 +119,7 @@ public class Peer implements Runnable {
                 PrintStream out = new PrintStream(proxySocket.getOutputStream());
                 InputStreamReader in = new InputStreamReader(proxySocket.getInputStream());
 
-                out.println("POST /portal HTTP/1.1");
+                out.println("POST /portal HTTP/1.0");
                 out.println();
                 out.flush();
 
@@ -152,9 +152,8 @@ public class Peer implements Runnable {
         
         private String buildResponse(CharSequence body, String textStatus) {
         	StringBuilder response = new StringBuilder();
-        	response.append(String.format("HTTP/1.1 %s%n", textStatus));
+        	response.append(String.format("HTTP/1.0 %s%n", textStatus));
         	response.append("Server: SecureHTTP\n");
-        	response.append("Connection: close\n");
         	response.append("Content-Type: text/html; charset=UTF-8\n");
         	response.append(String.format("Content-Length: %d%n%n", body.length()));
         	response.append(body);
