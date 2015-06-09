@@ -5,9 +5,9 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.ServerSocket;
+import java.net.InetAddress;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 
@@ -57,7 +57,7 @@ public class Peer implements Runnable {
                 String response;
                 String line = in.readLine();
                 String[] words = line.split(" ");
-                while (in.readLine() != null) {};
+                while (in.readLine().length() > 0) {};
 
                 switch (words[0]) {
                 	case "GET":
@@ -87,10 +87,7 @@ public class Peer implements Runnable {
 
                 out.print(response);
                 out.flush();
-                out.close();
                 clientSocket.close();
-
-                System.out.println("Connection closed");
             } catch(IOException e) {
                 e.printStackTrace();
             }
@@ -110,21 +107,19 @@ public class Peer implements Runnable {
         		Socket proxySocket = new Socket(remoteAddr, remotePort);
 
                 PrintStream out = new PrintStream(proxySocket.getOutputStream());
-                BufferedReader in = new BufferedReader(new InputStreamReader(proxySocket.getInputStream()));
+                InputStreamReader in = new InputStreamReader(proxySocket.getInputStream());
 
                 out.println("POST /portal HTTP/1.1");
                 out.println();
+                out.flush();
 
                 StringBuilder body = new StringBuilder();
-                String line;
-                while ((line = in.readLine()) != null) {
-                	body.append(line);
-                	body.append("\n");
-                }
-                body.append("\n\n");
+                char[] buffer = new char[8192];
 
-                out.flush();
-                out.close();
+                while (in.read(buffer) > 0) {
+                	body.append(buffer);
+                }
+
                 proxySocket.close();
             	return body.toString();
         	} catch(IOException e) {
