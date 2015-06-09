@@ -134,17 +134,15 @@ public class Peer implements Runnable {
             	return body.toString();
         	} catch(IOException e) {
                 e.printStackTrace();
-                return e.toString();
+                return buildResponse(e.toString(), "500 Internal Server Error");
             }
         }
         
         private String portal() {
         	StringBuilder body = new StringBuilder();
-        	body.append("<form action='/'>");
         	body.append(String.format("<p>Remote Page on %s:%d</p>", localAddr, localPort));
         	body.append(String.format("<p>Access From %s:%d</p>", clientAddr, clientPort));
-        	body.append("<input type='submit' value='Visit Local Page' />");
-        	body.append("</form>");
+        	body.append("<a href='/'><button>Visit Local Page</button></a>");
         	return buildResponse(body, "200 OK");
         }
 
