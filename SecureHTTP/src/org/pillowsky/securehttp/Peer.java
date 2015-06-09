@@ -8,8 +8,11 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.InetAddress;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
+import java.util.Calendar;
 
 public class Peer implements Runnable {
 	private String localAddr;
@@ -18,6 +21,7 @@ public class Peer implements Runnable {
 	private int remotePort;
     private ServerSocket serverSocket;
     private ExecutorService pool;
+    private DateFormat logFormat;
 
     public Peer(String localAddr, int localPort, String remoteAddr, int remotePort) throws IOException {
     	this.localAddr = localAddr;
@@ -26,6 +30,7 @@ public class Peer implements Runnable {
         this.remotePort = remotePort;
         this.serverSocket = new ServerSocket(localPort, 50, InetAddress.getByName(localAddr));
         this.pool = Executors.newCachedThreadPool();
+        this.logFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     }
 
     @Override
@@ -41,23 +46,27 @@ public class Peer implements Runnable {
 
     public class RequestHandler implements Runnable {
         private Socket clientSocket;
+        private String clientAddr;
+        private int clientPort;
         
         RequestHandler(Socket socket) {
             this.clientSocket = socket;
+            this.clientAddr = socket.getInetAddress().getHostAddress();
+            this.clientPort = socket.getPort();
         }
 
         @Override
         public void run() {
             try {
-                System.out.println("Received a connection");
-
-                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-                PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
+            	BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            	PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
 
                 String response;
                 String line = in.readLine();
                 String[] words = line.split(" ");
                 while (in.readLine().length() > 0) {};
+
+            	System.out.format("[%s] %s:%d %s%n", logFormat.format(Calendar.getInstance().getTime()), clientAddr, clientPort, line);
 
                 switch (words[0]) {
                 	case "GET":
@@ -97,6 +106,7 @@ public class Peer implements Runnable {
         	StringBuilder body = new StringBuilder();
         	body.append("<form action='/remote' method='post'>");
         	body.append(String.format("<p>Local Page on %s:%d</p>", localAddr, localPort));
+        	body.append(String.format("<p>Access From %s:%d</p>", clientAddr, clientPort));
         	body.append("<input type='submit' value='Visit Remote Page' />");
         	body.append("</form>");
         	return buildResponse(body, "200 OK");
@@ -132,6 +142,7 @@ public class Peer implements Runnable {
         	StringBuilder body = new StringBuilder();
         	body.append("<form action='/'>");
         	body.append(String.format("<p>Remote Page on %s:%d</p>", localAddr, localPort));
+        	body.append(String.format("<p>Access From %s:%d</p>", clientAddr, clientPort));
         	body.append("<input type='submit' value='Visit Local Page' />");
         	body.append("</form>");
         	return buildResponse(body, "200 OK");
