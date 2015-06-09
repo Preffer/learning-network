@@ -32,8 +32,7 @@ public class Peer implements Runnable {
     public void run() {
         while (true) {
             try {
-                Socket socket = serverSocket.accept();
-                pool.execute(new RequestHandler(socket));
+                pool.execute(new RequestHandler(serverSocket.accept()));
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -41,10 +40,10 @@ public class Peer implements Runnable {
     }
 
     public class RequestHandler implements Runnable {
-        private Socket socket;
+        private Socket clientSocket;
         
         RequestHandler(Socket socket) {
-            this.socket = socket;
+            this.clientSocket = socket;
         }
 
         @Override
@@ -52,17 +51,26 @@ public class Peer implements Runnable {
             try {
                 System.out.println("Received a connection");
 
-                BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                PrintWriter out = new PrintWriter(socket.getOutputStream());
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
 
                 String response;
                 String line = in.readLine();
                 String[] words = line.split(" ");
-                if ("GET".equals(words[0]) && "/".equals(words[1])) {
-                	response = local();
-                } else {
-                	if ("POST".equals(words[0])) {
-                		switch(words[1]) {
+                while (in.readLine() != null) {};
+
+                switch (words[0]) {
+                	case "GET":
+                		switch (words[1]) {
+                			case "/":
+                				response = local();
+                				break;
+                			default:
+                				response = notFound();
+                		}
+                		break;
+                	case "POST":
+                		switch (words[1]) {
 	                		case "/remote":
 	                			response = remote();
 	                			break;
@@ -72,15 +80,15 @@ public class Peer implements Runnable {
 	                		default:
 	                			response = notFound();
                 		}
-             		} else {
+                		break;
+                	default:
                 		response = notFound();
-                	}
                 }
 
                 out.print(response);
                 out.flush();
                 out.close();
-                socket.close();
+                clientSocket.close();
 
                 System.out.println("Connection closed");
             } catch(IOException e) {
@@ -89,16 +97,20 @@ public class Peer implements Runnable {
         }
 
         private String local() {
-        	String body = String.format("<form action='/remote' method='post'><p>Local Page on %s:%d</p><input type='submit' value='Visit Remote Page' /></form>", localAddr, localPort);
-        	return buildResponse(body, 200, "OK");
+        	StringBuilder body = new StringBuilder();
+        	body.append("<form action='/remote' method='post'>");
+        	body.append(String.format("<p>Local Page on %s:%d</p>", localAddr, localPort));
+        	body.append("<input type='submit' value='Visit Remote Page' />");
+        	body.append("</form>");
+        	return buildResponse(body, "200 OK");
         }
         
         private String remote() {
         	try {
-        		Socket client = new Socket(remoteAddr, remotePort);
+        		Socket proxySocket = new Socket(remoteAddr, remotePort);
 
-                PrintStream out = new PrintStream(client.getOutputStream());
-                BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+                PrintStream out = new PrintStream(proxySocket.getOutputStream());
+                BufferedReader in = new BufferedReader(new InputStreamReader(proxySocket.getInputStream()));
 
                 out.println("POST /portal HTTP/1.1");
                 out.println();
@@ -113,7 +125,7 @@ public class Peer implements Runnable {
 
                 out.flush();
                 out.close();
-                client.close();
+                proxySocket.close();
             	return body.toString();
         	} catch(IOException e) {
                 e.printStackTrace();
@@ -122,17 +134,21 @@ public class Peer implements Runnable {
         }
         
         private String portal() {
-        	String body = String.format("<form action='/'><p>Remote Page on %s:%d</p><input type='submit' value='Visit Local Page' /></form>", localAddr, localPort);
-        	return buildResponse(body, 200, "OK");
+        	StringBuilder body = new StringBuilder();
+        	body.append("<form action='/'>");
+        	body.append(String.format("<p>Remote Page on %s:%d</p>", localAddr, localPort));
+        	body.append("<input type='submit' value='Visit Local Page' />");
+        	body.append("</form>");
+        	return buildResponse(body, "200 OK");
         }
 
         private String notFound() {
-        	return buildResponse("404 Not Found", 404, "Not Found");
+        	return buildResponse("404 Not Found", "404 Not Found");
         }
         
-        private String buildResponse(String body, int status, String textStatus) {
+        private String buildResponse(CharSequence body, String textStatus) {
         	StringBuilder response = new StringBuilder();
-        	response.append(String.format("HTTP/1.1 %d %s%n", status, textStatus));
+        	response.append(String.format("HTTP/1.1 %s%n", textStatus));
         	response.append("Server: SecureHTTP\n");
         	response.append("Connection: close\n");
         	response.append("Content-Type: text/html; charset=UTF-8\n");
