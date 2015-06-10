@@ -1,10 +1,11 @@
 package org.pillowsky.securehttp;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.PrintStream;
+import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.io.IOException;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.InetAddress;
@@ -13,6 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.Date;
+import org.pillowsky.securehttp.Guard;
 
 public class Peer implements Runnable {
 	private String localAddr;
@@ -22,8 +24,9 @@ public class Peer implements Runnable {
     private ServerSocket serverSocket;
     private ExecutorService pool;
     private DateFormat logFormat;
-
-    public Peer(String localAddr, int localPort, String remoteAddr, int remotePort) throws IOException {
+    private Guard guard;
+    
+    public Peer(String localAddr, int localPort, String remoteAddr, int remotePort, String desKeyfile) throws Exception {
     	this.localAddr = localAddr;
         this.localPort = localPort;
         this.remoteAddr = remoteAddr;
@@ -31,6 +34,7 @@ public class Peer implements Runnable {
         this.serverSocket = new ServerSocket(localPort, 50, InetAddress.getByName(localAddr));
         this.pool = Executors.newCachedThreadPool();
         this.logFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        this.guard = new Guard(desKeyfile);
     }
 
     @Override
@@ -38,7 +42,7 @@ public class Peer implements Runnable {
         while (true) {
             try {
                 pool.execute(new RequestHandler(serverSocket.accept()));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 e.printStackTrace();
             }
         }
@@ -48,6 +52,10 @@ public class Peer implements Runnable {
         private Socket clientSocket;
         private String clientAddr;
         private int clientPort;
+        private InputStream inStream;
+        private OutputStream outStream;
+        private BufferedReader inReader;
+        private PrintWriter outWriter;
         
         RequestHandler(Socket socket) {
             this.clientSocket = socket;
@@ -58,13 +66,14 @@ public class Peer implements Runnable {
         @Override
         public void run() {
             try {
-            	BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            	PrintWriter out = new PrintWriter(clientSocket.getOutputStream());
-
-                String response;
-                String line = in.readLine();
+            	inStream = clientSocket.getInputStream();
+            	outStream = clientSocket.getOutputStream();
+            	inReader = new BufferedReader(new InputStreamReader(inStream));
+            	outWriter = new PrintWriter(outStream);
+            	
+                String line = inReader.readLine();
                 String[] words = line.split(" ");
-                while (in.readLine().length() > 0) {};
+                while (inReader.readLine().length() > 0) {};
 
                 System.out.format("[%s] %s:%d %s%n", logFormat.format(new Date()), clientAddr, clientPort, line);
 
@@ -72,82 +81,84 @@ public class Peer implements Runnable {
                 	case "GET":
                 		switch (words[1]) {
                 			case "/":
-                				response = local();
+                				local();
                 				break;
                 			default:
-                				response = notFound();
+                				notFound();
                 		}
                 		break;
                 	case "POST":
                 		switch (words[1]) {
 	                		case "/remote":
-	                			response = remote();
+	                			remote();
 	                			break;
 	                		case "/portal":
-	                			response = portal();
+	                			portal();
 	                			break;
 	                		default:
-	                			response = notFound();
+	                			notFound();
                 		}
                 		break;
                 	default:
-                		response = notFound();
+                		notFound();
                 }
 
-                out.print(response);
-                out.flush();
+                outWriter.flush();
                 clientSocket.close();
-            } catch(IOException e) {
+            } catch(Exception e) {
                 e.printStackTrace();
             }
         }
 
-        private String local() {
+        private void local() {
         	StringBuilder body = new StringBuilder();
         	body.append("<form action='/remote' method='post'>");
         	body.append(String.format("<p>Local Page on %s:%d</p>", localAddr, localPort));
         	body.append(String.format("<p>Access From %s:%d</p>", clientAddr, clientPort));
         	body.append("<input type='submit' value='Visit Remote Page' />");
         	body.append("</form>");
-        	return buildResponse(body, "200 OK");
+        	outWriter.print(buildResponse(body, "200 OK"));
         }
         
-        private String remote() {
+        private void remote() {
         	try {
         		Socket proxySocket = new Socket(remoteAddr, remotePort);
 
-                PrintStream out = new PrintStream(proxySocket.getOutputStream());
-                InputStreamReader in = new InputStreamReader(proxySocket.getInputStream());
+        		OutputStream req = proxySocket.getOutputStream();
+                InputStream res = proxySocket.getInputStream();
 
-                out.println("POST /portal HTTP/1.0");
-                out.println();
-                out.flush();
+                req.write("POST /portal HTTP/1.0\n\n".getBytes());
 
-                StringBuilder body = new StringBuilder();
-                char[] buffer = new char[8192];
-
-                while (in.read(buffer) > 0) {
-                	body.append(buffer);
+                byte[] buffer = new byte[8192];
+                ByteArrayOutputStream body = new ByteArrayOutputStream();
+                
+                int bytesRead;
+				while ((bytesRead = res.read(buffer)) > 0) {
+                	body.write(buffer, 0, bytesRead);
                 }
 
                 proxySocket.close();
-            	return body.toString();
-        	} catch(IOException e) {
+                outStream.write(guard.desDecrypt(body.toByteArray()));
+        	} catch(Exception e) {
                 e.printStackTrace();
-                return buildResponse(e.toString(), "500 Internal Server Error");
+                outWriter.print(buildResponse(e.toString(), "500 Internal Server Error"));
             }
         }
         
-        private String portal() {
-        	StringBuilder body = new StringBuilder();
-        	body.append(String.format("<p>Remote Page on %s:%d</p>", localAddr, localPort));
-        	body.append(String.format("<p>Access From %s:%d</p>", clientAddr, clientPort));
-        	body.append("<a href='/'><button>Visit Local Page</button></a>");
-        	return buildResponse(body, "200 OK");
+        private void portal() {
+        	try {
+            	StringBuilder body = new StringBuilder();
+            	body.append(String.format("<p>Remote Page on %s:%d</p>", localAddr, localPort));
+            	body.append(String.format("<p>Access From %s:%d</p>", clientAddr, clientPort));
+            	body.append("<a href='/'><button>Visit Local Page</button></a>");
+            	outStream.write(guard.desEncrypt(buildResponse(body, "200 OK").getBytes()));
+        	} catch(Exception e) {
+                e.printStackTrace();
+            }
         }
 
-        private String notFound() {
-        	return buildResponse("404 Not Found", "404 Not Found");
+        private void notFound() {
+        	outWriter.print(buildResponse("404 Not Found", "404 Not Found"));
         }
         
         private String buildResponse(CharSequence body, String textStatus) {
