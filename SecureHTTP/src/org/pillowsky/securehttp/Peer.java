@@ -123,7 +123,6 @@ public class Peer implements Runnable {
         private void remote() {
         	try {
         		Socket proxySocket = new Socket(remoteAddr, remotePort);
-
         		OutputStream req = proxySocket.getOutputStream();
                 InputStream res = proxySocket.getInputStream();
 
@@ -131,7 +130,7 @@ public class Peer implements Runnable {
 
                 byte[] buffer = new byte[8192];
                 ByteArrayOutputStream body = new ByteArrayOutputStream();
-                
+
                 int bytesRead;
 				while ((bytesRead = res.read(buffer)) > 0) {
                 	body.write(buffer, 0, bytesRead);

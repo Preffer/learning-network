@@ -28,8 +28,6 @@ public class Guard {
 
 		desDeCipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
 		desDeCipher.init(Cipher.DECRYPT_MODE, desKey);
-		
-		//test();
 	}
 	
 	public byte[] desEncrypt(byte[] plaintext) throws Exception {
@@ -39,24 +37,5 @@ public class Guard {
 	public byte[] desDecrypt(byte[] ciphertext) throws Exception {
 		return desDeCipher.doFinal(ciphertext);
 	}
-	
-	public void test() {
-		try{
-		    byte[] plaintext = "It is plain text".getBytes();
- 
-		    System.out.println("Text [Byte Format] :" + plaintext);
-		    System.out.println("Text :" + new String(plaintext));
- 
-		    byte[] ciphertext = desEnCipher.doFinal(plaintext);
- 
-		    System.out.println("Text Encryted : " + ciphertext);
- 
-		    byte[] output = desDeCipher.doFinal(ciphertext);
- 
-		    System.out.println("Text Decryted : " + new String(output));
- 
-		}catch(Exception e){
-			e.printStackTrace();
-		}
-	}
+
 }
