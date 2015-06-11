@@ -26,7 +26,7 @@ public class Peer implements Runnable {
     private DateFormat logFormat;
     private Guard guard;
     
-    public Peer(String localAddr, int localPort, String remoteAddr, int remotePort, String desKeyfile) throws Exception {
+    public Peer(String localAddr, int localPort, String remoteAddr, int remotePort, String desKeyfile, String publicKeyfile, String privateKeyfile) throws Exception {
     	this.localAddr = localAddr;
         this.localPort = localPort;
         this.remoteAddr = remoteAddr;
@@ -34,7 +34,7 @@ public class Peer implements Runnable {
         this.serverSocket = new ServerSocket(localPort, 50, InetAddress.getByName(localAddr));
         this.pool = Executors.newCachedThreadPool();
         this.logFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        this.guard = new Guard(desKeyfile);
+        this.guard = new Guard(desKeyfile, publicKeyfile, privateKeyfile);
     }
 
     @Override
