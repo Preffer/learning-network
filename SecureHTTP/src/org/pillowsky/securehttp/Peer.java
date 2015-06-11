@@ -115,7 +115,7 @@ public class Peer implements Runnable {
 		private void local() {
 			StringBuilder body = new StringBuilder();
 			body.append("<form action='/remote' method='post'>");
-			body.append(String.format("<p>Local Page on %s:%d</p>", localAddr, localPort));
+			body.append(String.format("<p>Local Page On %s:%d</p>", localAddr, localPort));
 			body.append(String.format("<p>Access From %s:%d</p>", clientAddr, clientPort));
 			body.append("<input type='submit' value='Visit Remote Page' />");
 			body.append("</form>");
@@ -147,7 +147,7 @@ public class Peer implements Runnable {
 				if (guard.rsaVerify(encrypted, sign)) {
 					outStream.write(guard.desDecrypt(encrypted));
 				} else {
-					outWriter.print(buildResponse("Security validation failed", "500 Internal Server Error"));
+					outWriter.print(buildResponse("Security Validation Failed", "500 Internal Server Error"));
 				}
 			} catch(Exception e) {
 				e.printStackTrace();
@@ -158,7 +158,7 @@ public class Peer implements Runnable {
 		private void portal() {
 			try {
 				StringBuilder body = new StringBuilder();
-				body.append(String.format("<p>Remote Page on %s:%d</p>", localAddr, localPort));
+				body.append(String.format("<p>Remote Page On %s:%d</p>", localAddr, localPort));
 				body.append(String.format("<p>Access From %s:%d</p>", clientAddr, clientPort));
 				body.append("<a href='/'><button>Visit Local Page</button></a>");
 
