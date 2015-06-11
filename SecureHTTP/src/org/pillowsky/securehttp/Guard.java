@@ -45,8 +45,8 @@ public class Guard {
 			KeyPair pair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
 			rsaPrivateKey = pair.getPrivate();
 			rsaPublicKey = pair.getPublic();
-			Files.write(Paths.get(privateKeyfile), new PKCS8EncodedKeySpec(rsaPrivateKey.getEncoded()).getEncoded());
-			Files.write(Paths.get(publicKeyfile), new X509EncodedKeySpec(rsaPublicKey.getEncoded()).getEncoded());
+			Files.write(Paths.get(privateKeyfile), rsaPrivateKey.getEncoded());
+			Files.write(Paths.get(publicKeyfile), rsaPublicKey.getEncoded());
 			System.out.format("Create and save rsa private key to %s%n", privateKeyfile);
 			System.out.format("Create and save rsa public key to %s%n", publicKeyfile);
 			System.out.println("Distribute rsa keyfile and run again.");
