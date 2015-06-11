@@ -25,7 +25,7 @@ public class Guard {
 	private Signature rsaSigner;
 	private Signature rsaVerifier;
 
-	public Guard(String desKeyfile, String publicKeyfile, String privateKeyfile) throws Exception {
+	public Guard(String desKeyfile, String privateKeyfile, String publicKeyfile) throws Exception {
 		try {
 			desKey = new SecretKeySpec(Files.readAllBytes(Paths.get(desKeyfile)), "DES");
 			System.out.format("Load des key from %s%n", desKeyfile);
@@ -37,18 +37,18 @@ public class Guard {
 
 		try {
 			KeyFactory factory = KeyFactory.getInstance("RSA");
-			rsaPublicKey = factory.generatePublic(new X509EncodedKeySpec(Files.readAllBytes(Paths.get(publicKeyfile))));
 			rsaPrivateKey = factory.generatePrivate(new PKCS8EncodedKeySpec(Files.readAllBytes(Paths.get(privateKeyfile))));
-			System.out.format("Load rsa public key from %s%n", publicKeyfile);
+			rsaPublicKey = factory.generatePublic(new X509EncodedKeySpec(Files.readAllBytes(Paths.get(publicKeyfile))));
 			System.out.format("Load rsa private key from %s%n", privateKeyfile);
+			System.out.format("Load rsa public key from %s%n", publicKeyfile);
 		} catch (NoSuchFileException e) {
 			KeyPair pair = KeyPairGenerator.getInstance("RSA").generateKeyPair();
-			rsaPublicKey = pair.getPublic();
 			rsaPrivateKey = pair.getPrivate();
-			Files.write(Paths.get(publicKeyfile), new X509EncodedKeySpec(rsaPublicKey.getEncoded()).getEncoded());
+			rsaPublicKey = pair.getPublic();
 			Files.write(Paths.get(privateKeyfile), new PKCS8EncodedKeySpec(rsaPrivateKey.getEncoded()).getEncoded());
-			System.out.format("Create and save rsa public key to %s%n", publicKeyfile);
+			Files.write(Paths.get(publicKeyfile), new X509EncodedKeySpec(rsaPublicKey.getEncoded()).getEncoded());
 			System.out.format("Create and save rsa private key to %s%n", privateKeyfile);
+			System.out.format("Create and save rsa public key to %s%n", publicKeyfile);
 			System.out.println("Distribute rsa keyfile and run again.");
 			System.exit(1);
 		}

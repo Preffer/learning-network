@@ -9,11 +9,13 @@ import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.ServerSocket;
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutorService;
 import java.util.Date;
+import java.util.Arrays;
 import org.pillowsky.securehttp.Guard;
 
 public class Peer implements Runnable {
@@ -26,7 +28,7 @@ public class Peer implements Runnable {
 	private DateFormat logFormat;
 	private Guard guard;
 
-	public Peer(String localAddr, int localPort, String remoteAddr, int remotePort, String desKeyfile, String publicKeyfile, String privateKeyfile) throws Exception {
+	public Peer(String localAddr, int localPort, String remoteAddr, int remotePort, String desKeyfile, String privateKeyfile, String publicKeyfile) throws Exception {
 		this.localAddr = localAddr;
 		this.localPort = localPort;
 		this.remoteAddr = remoteAddr;
@@ -34,7 +36,7 @@ public class Peer implements Runnable {
 		this.serverSocket = new ServerSocket(localPort, 50, InetAddress.getByName(localAddr));
 		this.pool = Executors.newCachedThreadPool();
 		this.logFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		this.guard = new Guard(desKeyfile, publicKeyfile, privateKeyfile);
+		this.guard = new Guard(desKeyfile, privateKeyfile, publicKeyfile);
 	}
 
 	@Override
@@ -135,9 +137,18 @@ public class Peer implements Runnable {
 				while ((bytesRead = res.read(buffer)) > 0) {
 					body.write(buffer, 0, bytesRead);
 				}
-
 				proxySocket.close();
-				outStream.write(guard.desDecrypt(body.toByteArray()));
+
+				byte[] packet = body.toByteArray();
+				int cipherLength = ByteBuffer.wrap(packet, 0, 4).getInt();
+				byte[] encrypted = Arrays.copyOfRange(packet, 4, 4 + cipherLength);
+				byte[] sign = Arrays.copyOfRange(packet, 4 + cipherLength, packet.length);
+
+				if (guard.rsaVerify(encrypted, sign)) {
+					outStream.write(guard.desDecrypt(encrypted));
+				} else {
+					outWriter.print(buildResponse("Security validation failed", "500 Internal Server Error"));
+				}
 			} catch(Exception e) {
 				e.printStackTrace();
 				outWriter.print(buildResponse(e.toString(), "500 Internal Server Error"));
@@ -150,7 +161,13 @@ public class Peer implements Runnable {
 				body.append(String.format("<p>Remote Page on %s:%d</p>", localAddr, localPort));
 				body.append(String.format("<p>Access From %s:%d</p>", clientAddr, clientPort));
 				body.append("<a href='/'><button>Visit Local Page</button></a>");
-				outStream.write(guard.desEncrypt(buildResponse(body, "200 OK").getBytes()));
+
+				byte[] encrypted = guard.desEncrypt(buildResponse(body, "200 OK").getBytes());
+				byte[] sign = guard.rsaSign(encrypted);
+
+				outStream.write(ByteBuffer.allocate(4).putInt(encrypted.length).array());
+				outStream.write(encrypted);
+				outStream.write(sign);
 			} catch(Exception e) {
 				e.printStackTrace();
 			}
