@@ -11,7 +11,6 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -23,7 +22,9 @@ public class Guard {
 	private PrivateKey rsaPrivateKey;
 	private Cipher desEnCipher;
 	private Cipher desDeCipher;
-	
+	private Signature rsaSigner;
+	private Signature rsaVerifier;
+
 	public Guard(String desKeyfile, String publicKeyfile, String privateKeyfile) throws Exception {
 		try {
 			desKey = new SecretKeySpec(Files.readAllBytes(Paths.get(desKeyfile)), "DES");
@@ -33,7 +34,7 @@ public class Guard {
 			Files.write(Paths.get(desKeyfile), desKey.getEncoded());
 			System.out.format("Create and save des key to %s%n", desKeyfile);
 		}
-		
+
 		try {
 			KeyFactory factory = KeyFactory.getInstance("RSA");
 			rsaPublicKey = factory.generatePublic(new X509EncodedKeySpec(Files.readAllBytes(Paths.get(publicKeyfile))));
@@ -51,20 +52,35 @@ public class Guard {
 			System.out.println("Distribute rsa keyfile and run again.");
 			System.exit(1);
 		}
-		
+
 		desEnCipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
 		desEnCipher.init(Cipher.ENCRYPT_MODE, desKey);
 
 		desDeCipher = Cipher.getInstance("DES/ECB/PKCS5Padding");
 		desDeCipher.init(Cipher.DECRYPT_MODE, desKey);
+
+		rsaSigner = Signature.getInstance("SHA1withRSA");
+		rsaSigner.initSign(rsaPrivateKey);
+
+		rsaVerifier = Signature.getInstance("SHA1withRSA");
+		rsaVerifier.initVerify(rsaPublicKey);
 	}
-	
+
 	public byte[] desEncrypt(byte[] plaintext) throws Exception {
 		return desEnCipher.doFinal(plaintext);
 	}
-	
+
 	public byte[] desDecrypt(byte[] ciphertext) throws Exception {
 		return desDeCipher.doFinal(ciphertext);
 	}
 
+	public byte[] rsaSign(byte[] data) throws Exception {
+		rsaSigner.update(data);
+		return rsaSigner.sign();
+	}
+
+	public boolean rsaVerify(byte[] data, byte[] sign) throws Exception {
+		rsaVerifier.update(data);
+		return rsaVerifier.verify(sign);
+	}
 }
